@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MilkTea 2000s | Quản Trị Hệ Thống</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background: #f4f6f9; color: #333; }
+        .navbar-admin { background: #2c3e50; }
+        .stat-card { border: none; border-radius: 12px; transition: 0.3s; color: white; }
+        .stat-card.revenue { background: linear-gradient(45deg, #27ae60, #2ecc71); }
+        .stat-card.orders { background: linear-gradient(45deg, #2980b9, #3498db); }
+        #login-view { height: 100vh; display: flex; justify-content: center; align-items: center; background-color: #2c3e50; }
+        .table-hover tbody tr:hover { background-color: #f1f2f6; }
+        .filter-box { background: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .nav-pills .nav-link.active { background-color: #2c3e50; }
+        .nav-pills .nav-link { color: #2c3e50; font-weight: bold; }
+        .bill-paper { background: #fffcf8; font-family: 'Courier New', Courier, monospace; }
+        canvas { max-height: 250px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-view" class="container-fluid">
+        <div class="card p-4 shadow-lg border-0 rounded-4 text-center" style="width: 100%; max-width: 400px;">
+            <h3 class="fw-bold mb-3"><i class="fas fa-user-shield text-primary"></i> Quản Trị Viên</h3>
+            <input type="password" id="adminPass" class="form-control mb-3 text-center" placeholder="Nhập password" onkeypress="if(event.key==='Enter') loginAdmin()">
+            <button class="btn btn-primary w-100 fw-bold" onclick="loginAdmin()">Đăng Nhập</button>
+        </div>
+    </div>
+
+    <div id="dashboard-view" style="display: none;">
+        <nav class="navbar navbar-admin shadow-sm mb-4 py-3">
+            <div class="container-fluid px-4">
+                <span class="navbar-brand mb-0 h1 text-white fw-bold"><i class="fas fa-chart-line text-warning"></i> MilkTea 2000s | Quản Lí Tiệm Trà</span>
+                <button class="btn btn-outline-light btn-sm fw-bold" onclick="location.reload()"><i class="fas fa-sign-out-alt"></i> Thoát</button>
+            </div>
+        </nav>
+
+        <div class="container-fluid px-4">
+            <ul class="nav nav-pills mb-4 gap-2">
+                <li class="nav-item"><a class="nav-link active shadow-sm" data-bs-toggle="pill" href="#tab-revenue"><i class="fas fa-wallet"></i> Thống Kê Doanh Thu</a></li>
+                <li class="nav-item"><a class="nav-link bg-white shadow-sm" data-bs-toggle="pill" href="#tab-menu"><i class="fas fa-coffee"></i> Quản Lý Menu</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="tab-revenue">
+                    <div class="filter-box d-flex align-items-center justify-content-between flex-wrap">
+                        <div class="d-flex align-items-center mb-2 mb-md-0">
+                            <label class="fw-bold me-3 mb-0"><i class="fas fa-calendar-alt text-primary"></i> Chọn ngày:</label>
+                            <input type="date" id="dateFilter" class="form-control border-primary" style="width: 200px;" onchange="loadAdminData()">
+                        </div>
+                    </div>
+
+                    <div class="row mb-4 text-white">
+                        <div class="col-md-4 mb-3">
+                            <div class="card stat-card revenue p-4 shadow h-100">
+                                <h6 class="text-uppercase fw-bold mb-2 opacity-75 small">Doanh Thu Ngày</h6>
+                                <h2 class="fw-bold mb-0" id="total-revenue">0 đ</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card stat-card orders p-4 shadow h-100">
+                                <h6 class="text-uppercase fw-bold mb-2 opacity-75 small">Đơn Thành Công</h6>
+                                <h2 class="fw-bold mb-0" id="total-done-orders">0</h2>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="card p-3 border-0 shadow-sm h-100">
+                                <canvas id="revChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0 rounded-4 mb-5">
+                        <div class="card-header bg-white py-3 border-bottom-0"><h5 class="fw-bold mb-0"><i class="fas fa-history text-secondary"></i> Lịch Sử Chi Tiết</h5></div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light"><tr><th class="ps-4">Giờ</th><th>Khách hàng</th><th>Món</th><th class="text-end">Tổng tiền</th><th class="text-center">Bill</th></tr></thead>
+                                <tbody id="history-board"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-menu">
+                    <div class="card shadow-sm border-0 rounded-4 mb-5">
+                        <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
+                            <h5 class="fw-bold mb-0"><i class="fas fa-list text-primary"></i> Menu Quán</h5>
+                            <button class="btn btn-success fw-bold btn-sm" onclick="openAddModal()"><i class="fas fa-plus"></i> Thêm Món mới </button>
+                        </div>
+                        <div class="card-body p-0 table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light"><tr><th class="ps-4">Ảnh</th><th>Tên</th><th>Giá</th><th class="text-end pe-4">Thao tác</th></tr></thead>
+                                <tbody id="menu-admin-board"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="adminBillModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg bill-paper">
+                <div class="modal-body p-4 text-center">
+                    <h4 class="fw-bold mb-0 text-dark">MilkTea 2000s</h4>
+                    <p class="small text-muted mb-3">HÓA ĐƠN HỆ THỐNG</p>
+                    <div class="text-start small mb-3 border-top border-bottom py-2" style="border-style: dashed !important;">
+                        <div><strong>Khách:</strong> <span id="aBillName"></span></div>
+                        <div><strong>SĐT:</strong> <span id="aBillPhone"></span></div>
+                        <div><strong>Giờ:</strong> <span id="aBillTime"></span></div>
+                    </div>
+                    <div id="aBillItems" class="text-start small mb-3"></div>
+                    <div class="d-flex justify-content-between fw-bold fs-5 mb-3 border-top pt-2" style="border-style: dashed !important;">
+                        <span>TỔNG:</span><span id="aBillTotal">0 đ</span>
+                    </div>
+                    <div class="text-start small mb-3 p-2 rounded bg-light" style="font-family: 'Be Vietnam Pro';">
+                        <strong>Ghi chú:</strong> <i id="aBillNote"></i>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm w-100 fw-bold" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="drinkModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-body p-4">
+                    <h5 class="fw-bold text-primary mb-3" id="modalTitle">Thêm Món</h5>
+                    <input type="text" id="drinkName" class="form-control mb-3" placeholder="Tên món">
+                    <input type="number" id="drinkPrice" class="form-control mb-3" placeholder="Giá tiền">
+                    <div class="mb-3">
+                        <label class="fw-bold small">Hình ảnh món nước</label>
+                        <input type="file" id="drinkFile" class="form-control form-control-sm mb-2" accept="image/*" onchange="previewImg(this)">
+                        <input type="text" id="drinkImg" class="form-control form-control-sm" placeholder="Hoặc URL hình ảnh">
+                        <div id="imgPreview" class="mt-2 text-center" style="display:none">
+                            <img id="tempImg" src="" width="80" class="rounded border">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary w-100 fw-bold" onclick="saveDrink()">Lưu Lại</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script>
+        const appC = firebase.initializeApp({ apiKey: "AIzaSyBNkPG5lHwGTBcAkw3Nuh8FmnXnFxl3sBg", databaseURL: "https://milktea-2000s-default-rtdb.firebaseio.com" }, "C");
+        const appA = firebase.initializeApp({ apiKey: "AIzaSyAm-vmNSuDa6B1DLc3TMazcADln_kmOJ48", databaseURL: "https://quytam-39bd0-default-rtdb.firebaseio.com/" }, "A");
+        const dbC = appC.database(); const dbA = appA.database();
+        
+        let allOrders = []; let drinksList = []; let currentEditId = null; let dModal; let myChart = null;
+
+        window.onload = () => { document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0]; loadAdminData(); };
+
+        // 1. LOGIN ĐÃ FIX + BẢO MẬT FIREBASE
+        function loginAdmin() {
+            const pass = document.getElementById('adminPass').value;
+            dbA.ref('scurity/addminpass').once('value').then((snapshot) => {
+                const correctPass = String(snapshot.val());
+                if(pass === correctPass) {
+                    document.getElementById('login-view').style.display = 'none';
+                    document.getElementById('dashboard-view').style.display = 'block';
+                    loadAdminData(); // Load dữ liệu ngay sau khi login
+                } else {
+                    alert("Sai mật khẩu Admin rồi sếp ơi!");
+                }
+            });
+        }
+
+        // 2. THỐNG KÊ + BIỂU ĐỒ
+        function loadAdminData() {
+            const dateVal = document.getElementById('dateFilter').value.split('-');
+            if(dateVal.length < 3) return;
+            const fDate = `${parseInt(dateVal[2])}/${parseInt(dateVal[1])}/${dateVal[0]}`;
+
+            dbC.ref('orders').on('value', snap => {
+                const data = snap.val();
+                allOrders = data ? Object.keys(data).map(k => ({id:k, ...data[k]})) : [];
+                
+                // Lọc đơn hoàn thành của ngày được chọn
+                let doneOrds = allOrders.filter(o => o.status === 'done' && o.time && o.time.includes(fDate)).reverse();
+                
+                let tot = 0;
+                document.getElementById('history-board').innerHTML = doneOrds.length === 0 ? 
+                    `<tr><td colspan="5" class="text-center py-4 text-muted">Không có đơn hoàn thành trong ngày này</td></tr>` :
+                    doneOrds.map(o => {
+                        let price = parseInt(o.total) || 0; tot += price;
+                        return `<tr>
+                            <td class="ps-4 small">${o.time.split(' ')[1] || ''}</td>
+                            <td><b>${o.customerName}</b><br><small>${o.customerPhone}</small></td>
+                            <td class="small">☕ ${o.items.split(' + ').join('<br>')}</td>
+                            <td class="text-end fw-bold text-success">${price.toLocaleString()}đ</td>
+                            <td class="text-center"><button class="btn btn-sm btn-outline-secondary" onclick="viewBill('${o.id}')"><i class="fas fa-file-invoice"></i></button></td>
+                        </tr>`;
+                    }).join('');
+                document.getElementById('total-revenue').innerText = tot.toLocaleString() + " đ";
+                document.getElementById('total-done-orders').innerText = doneOrds.length;
+
+                // Vẽ biểu đồ 7 ngày gần nhất
+                updateChart();
+            });
+        }
+
+        function updateChart() {
+            let labels = []; let dataRev = [];
+            for(let i=6; i>=0; i--) {
+                let d = new Date(); d.setDate(d.getDate() - i);
+                labels.push(d.toLocaleDateString('vi-VN').substring(0,5));
+                dataRev.push(0);
+            }
+            allOrders.forEach(o => {
+                if(o.status === 'done' && o.time) {
+                    let oDate = o.time.split(' ')[0].substring(0,5);
+                    let idx = labels.indexOf(oDate);
+                    if(idx !== -1) dataRev[idx] += (parseInt(o.total) || 0);
+                }
+            });
+            if(myChart) myChart.destroy();
+            myChart = new Chart(document.getElementById('revChart'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label:'Tiền (đ)', data: dataRev, backgroundColor:'#3498db', borderRadius:5 }] },
+                options: { plugins: { legend: {display:false} }, scales: { y: {beginAtZero: true, display:false} } }
+            });
+        }
+
+        // 3. QUẢN LÝ MENU (GIỮ NGUYÊN LOGIC CỦA SẾP)
+        dbA.ref('drinks').on('value', snap => {
+            const data = snap.val(); drinksList = data ? Object.keys(data).map(k => ({id:k, ...data[k]})) : [];
+            document.getElementById('menu-admin-board').innerHTML = drinksList.map(d => `<tr><td class="ps-4"><img src="${d.img}" width="40" height="40" style="object-fit:cover;border-radius:8px"></td><td><b>${d.name}</b></td><td class="text-success fw-bold">${parseInt(d.price).toLocaleString()}đ</td><td class="text-end pe-4"><button class="btn btn-sm btn-outline-primary me-2" onclick="openAddModal('${d.id}')">Sửa</button><button class="btn btn-sm btn-outline-danger" onclick="deleteDrink('${d.id}')">Xóa</button></td></tr>`).join('');
+        });
+
+        function previewImg(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.getElementById('drinkImg').value = e.target.result;
+                    document.getElementById('tempImg').src = e.target.result;
+                    document.getElementById('imgPreview').style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function openAddModal(id = null) {
+            if(!dModal) dModal = new bootstrap.Modal(document.getElementById('drinkModal'));
+            currentEditId = id; document.getElementById('modalTitle').innerText = id ? "Sửa Món" : "Thêm Món";
+            const d = id ? drinksList.find(x => x.id === id) : {name:'', price:'', img:''};
+            document.getElementById('drinkName').value = d.name; document.getElementById('drinkPrice').value = d.price; document.getElementById('drinkImg').value = d.img;
+            document.getElementById('tempImg').src = d.img || '';
+            document.getElementById('imgPreview').style.display = d.img ? 'block' : 'none';
+            dModal.show();
+        }
+
+        function saveDrink() {
+            const name = document.getElementById('drinkName').value, price = document.getElementById('drinkPrice').value, img = document.getElementById('drinkImg').value;
+            if(!name || !price || !img) return alert("Nhập đủ thông tin!");
+            if(currentEditId) dbA.ref('drinks').child(currentEditId).update({name, price, img}); else dbA.ref('drinks').push({name, price, img});
+            dModal.hide();
+        }
+
+        function deleteDrink(id) { if(confirm("Xác nhận xóa món này?")) dbA.ref('drinks').child(id).remove(); }
+        function viewBill(id) {
+            const o = allOrders.find(x => x.id === id); if(!o) return;
+            document.getElementById('aBillName').innerText = o.customerName;
+            document.getElementById('aBillPhone').innerText = o.customerPhone;
+            document.getElementById('aBillTime').innerText = o.time;
+            document.getElementById('aBillTotal').innerText = (parseInt(o.total)||0).toLocaleString() + " đ";
+            document.getElementById('aBillNote').innerText = o.note || "Không có";
+            document.getElementById('aBillItems').innerHTML = o.items.split(" + ").map(i => `<div class="mb-1">☕ ${i}</div>`).join("");
+            new bootstrap.Modal(document.getElementById('adminBillModal')).show();
+        }
+    </script>
+</body>
+</html>
