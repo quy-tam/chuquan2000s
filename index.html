@@ -81,7 +81,7 @@
                         <div class="card-header bg-white py-3 border-bottom-0"><h5 class="fw-bold mb-0"><i class="fas fa-history text-secondary"></i> Lịch Sử Chi Tiết</h5></div>
                         <div class="card-body p-0 table-responsive">
                             <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light"><tr><th class="ps-4">Giờ</th><th>Khách hàng</th><th>Món</th><th class="text-end">Tổng tiền</th><th class="text-center">Bill</th></tr></thead>
+                                <thead class="table-light"><tr><th class="ps-4">Mã Đơn / Giờ</th><th>Khách hàng</th><th>Món</th><th class="text-end">Tổng tiền</th><th class="text-center">Bill</th></tr></thead>
                                 <tbody id="history-board"></tbody>
                             </table>
                         </div>
@@ -112,6 +112,12 @@
                 <div class="modal-body p-4 text-center">
                     <h4 class="fw-bold mb-0 text-dark">MilkTea 2000s</h4>
                     <p class="small text-muted mb-3">HÓA ĐƠN HỆ THỐNG</p>
+                    
+                    <div class="bg-light border border-2 border-primary p-2 mb-3 rounded">
+                        <small class="fw-bold text-muted">MÃ ĐƠN HÀNG</small>
+                        <h3 class="fw-bold mb-0 text-primary" id="aBillCode">----</h3>
+                    </div>
+
                     <div class="text-start small mb-3 border-top border-bottom py-2" style="border-style: dashed !important;">
                         <div><strong>Khách:</strong> <span id="aBillName"></span></div>
                         <div><strong>SĐT:</strong> <span id="aBillPhone"></span></div>
@@ -164,7 +170,6 @@
 
         window.onload = () => { document.getElementById('dateFilter').value = new Date().toISOString().split('T')[0]; loadAdminData(); };
 
-        // 1. LOGIN ĐÃ FIX + BẢO MẬT FIREBASE
         function loginAdmin() {
             const pass = document.getElementById('adminPass').value;
             dbA.ref('scurity/addminpass').once('value').then((snapshot) => {
@@ -172,14 +177,13 @@
                 if(pass === correctPass) {
                     document.getElementById('login-view').style.display = 'none';
                     document.getElementById('dashboard-view').style.display = 'block';
-                    loadAdminData(); // Load dữ liệu ngay sau khi login
+                    loadAdminData(); 
                 } else {
                     alert("Sai mật khẩu Admin rồi sếp ơi!");
                 }
             });
         }
 
-        // 2. THỐNG KÊ + BIỂU ĐỒ
         function loadAdminData() {
             const dateVal = document.getElementById('dateFilter').value.split('-');
             if(dateVal.length < 3) return;
@@ -189,7 +193,6 @@
                 const data = snap.val();
                 allOrders = data ? Object.keys(data).map(k => ({id:k, ...data[k]})) : [];
                 
-                // Lọc đơn hoàn thành của ngày được chọn
                 let doneOrds = allOrders.filter(o => o.status === 'done' && o.time && o.time.includes(fDate)).reverse();
                 
                 let tot = 0;
@@ -197,8 +200,12 @@
                     `<tr><td colspan="5" class="text-center py-4 text-muted">Không có đơn hoàn thành trong ngày này</td></tr>` :
                     doneOrds.map(o => {
                         let price = parseInt(o.total) || 0; tot += price;
+                        // ĐÃ SỬA: Đổ Mã Đơn Hàng (o.orderCode) vào cột đầu tiên
                         return `<tr>
-                            <td class="ps-4 small">${o.time.split(' ')[1] || ''}</td>
+                            <td class="ps-4">
+                                <b class="text-primary">${o.orderCode || '---'}</b><br>
+                                <small class="text-muted">${o.time.split(' ')[1] || ''}</small>
+                            </td>
                             <td><b>${o.customerName}</b><br><small>${o.customerPhone}</small></td>
                             <td class="small">☕ ${o.items.split(' + ').join('<br>')}</td>
                             <td class="text-end fw-bold text-success">${price.toLocaleString()}đ</td>
@@ -208,7 +215,6 @@
                 document.getElementById('total-revenue').innerText = tot.toLocaleString() + " đ";
                 document.getElementById('total-done-orders').innerText = doneOrds.length;
 
-                // Vẽ biểu đồ 7 ngày gần nhất
                 updateChart();
             });
         }
@@ -235,7 +241,6 @@
             });
         }
 
-        // 3. QUẢN LÝ MENU (GIỮ NGUYÊN LOGIC CỦA SẾP)
         dbA.ref('drinks').on('value', snap => {
             const data = snap.val(); drinksList = data ? Object.keys(data).map(k => ({id:k, ...data[k]})) : [];
             document.getElementById('menu-admin-board').innerHTML = drinksList.map(d => `<tr><td class="ps-4"><img src="${d.img}" width="40" height="40" style="object-fit:cover;border-radius:8px"></td><td><b>${d.name}</b></td><td class="text-success fw-bold">${parseInt(d.price).toLocaleString()}đ</td><td class="text-end pe-4"><button class="btn btn-sm btn-outline-primary me-2" onclick="openAddModal('${d.id}')">Sửa</button><button class="btn btn-sm btn-outline-danger" onclick="deleteDrink('${d.id}')">Xóa</button></td></tr>`).join('');
@@ -272,8 +277,11 @@
         }
 
         function deleteDrink(id) { if(confirm("Xác nhận xóa món này?")) dbA.ref('drinks').child(id).remove(); }
+        
         function viewBill(id) {
             const o = allOrders.find(x => x.id === id); if(!o) return;
+            // ĐÃ SỬA: Đổ Mã Đơn Hàng vào Modal
+            document.getElementById('aBillCode').innerText = o.orderCode || "---";
             document.getElementById('aBillName').innerText = o.customerName;
             document.getElementById('aBillPhone').innerText = o.customerPhone;
             document.getElementById('aBillTime').innerText = o.time;
